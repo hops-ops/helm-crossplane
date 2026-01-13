@@ -1,0 +1,38 @@
+# code: language=yaml
+#
+# Helm release for crossplane
+#
+
+{{- $cp := $state.crossplane }}
+
+---
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: {{ $cp.releaseName }}
+  annotations:
+    {{ setResourceNameAnnotation "helm-release-crossplane" }}
+  labels: {{ $cp.labels | toJson }}
+spec:
+  managementPolicies: {{ $cp.managementPolicies | toJson }}
+  forProvider:
+    chart:
+      name: crossplane
+      repository: https://charts.crossplane.io/stable
+      version: 1.18.2
+    namespace: {{ $cp.namespace }}
+    {{- if $cp.overrideAllValues }}
+    values:
+      {{- toYaml $cp.overrideAllValues | nindent 6 }}
+    {{- else }}
+    values:
+      fullnameOverride: crossplane
+      nameOverride: crossplane
+      {{- if $cp.values }}
+      {{- toYaml $cp.values | nindent 6 }}
+      {{- end }}
+    {{- end }}
+  rollbackLimit: 3
+  providerConfigRef:
+    name: {{ $cp.providerConfigRef.name }}
+    kind: {{ $cp.providerConfigRef.kind }}

@@ -1,0 +1,21 @@
+apiVersion: helm.hops.ops.com.ai/v1alpha1
+kind: Crossplane
+metadata:
+  name: crossplane
+  namespace: example-env
+spec:
+  clusterName: example-cluster
+  labels:
+    team: platform
+  namespace: crossplane-system
+  values:
+    args:
+      - --enable-composition-functions
+      - --enable-composition-webhook-schema-validation
+    resourcesCrossplane:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
