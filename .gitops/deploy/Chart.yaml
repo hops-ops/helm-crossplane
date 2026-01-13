@@ -2,4 +2,4 @@ apiVersion: v2
 name: helm-crossplane
 version: 0.0.0
 description: GitOps packaging for the Crossplane Crossplane configuration
-appVersion: 1.20.4
+appVersion: 2.1.3
