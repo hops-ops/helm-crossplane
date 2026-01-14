@@ -2,6 +2,10 @@
 #
 # Helm release for crossplane
 #
+# Integration defaults:
+# - Prometheus metrics enabled for managed resource monitoring
+# - ServiceMonitor created for Prometheus Operator discovery
+#
 
 {{- $cp := $state.crossplane }}
 
@@ -28,6 +32,11 @@ spec:
     values:
       fullnameOverride: crossplane
       nameOverride: crossplane
+      # Prometheus metrics for managed resource health monitoring
+      metrics:
+        enabled: true
+      serviceMonitor:
+        enabled: true
       {{- if $cp.values }}
       {{- toYaml $cp.values | nindent 6 }}
       {{- end }}
