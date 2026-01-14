@@ -1,5 +1,6 @@
 import datetime
 import math
+import models.ai.com.ops.hops.helm.v1alpha1 as helmv1alpha1
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 import models.k8s.apimachinery.pkg.apis.meta.v1 as metav1
 
@@ -22,10 +23,14 @@ _items = [
                 version = "2.0.2-up.5"
                 autoUpgrade.channel = "None"
             }
+            defaultConditions = ["Ready"]
+            timeoutSeconds = 1800  # 30 minutes
+            cleanupTimeoutSeconds = 600  # 10 minutes
             skipDelete = False
 
             # ==============================================================
             # extraResources: Helm ProviderConfig with injected identity
+            # These are NOT deleted during cleanup
             # ==============================================================
             extraResources = [
                 # Helm ProviderConfig - uses in-cluster identity
@@ -33,27 +38,23 @@ _items = [
                     apiVersion = "helm.crossplane.io/v1beta1"
                     kind = "ProviderConfig"
                     metadata.name = "default"
-                    spec = {
-                        credentials = {
-                            source = "InjectedIdentity"
-                        }
-                    }
+                    spec.credentials.source = "InjectedIdentity"
                 }
             ]
 
             # ==============================================================
             # manifests: The Crossplane XR to test
+            # Resources here ARE deleted during cleanup
             # ==============================================================
             manifests = [
-                {
-                    apiVersion = "helm.hops.ops.com.ai/v1alpha1"
-                    kind = "Crossplane"
+                helmv1alpha1.Crossplane {
                     metadata = {
                         name = _test_name
                         namespace = "default"
                     }
                     spec = {
                         clusterName = _test_name
+                        # labels uses x-kubernetes-preserve-unknown-fields
                         labels = {
                             "hops.ops.com.ai/e2etest" = "true"
                             "hops.ops.com.ai/test-run" = _now
@@ -62,19 +63,13 @@ _items = [
                             name = "default"
                             kind = "ProviderConfig"
                         }
+                        # values uses x-kubernetes-preserve-unknown-fields
                         values = {
-                            # Minimal resources for E2E test
                             resourcesCrossplane = {
-                                requests = {
-                                    cpu = "10m"
-                                    memory = "64Mi"
-                                }
+                                requests = {cpu = "10m", memory = "64Mi"}
                             }
                             resourcesRBACManager = {
-                                requests = {
-                                    cpu = "10m"
-                                    memory = "32Mi"
-                                }
+                                requests = {cpu = "10m", memory = "32Mi"}
                             }
                         }
                     }
