@@ -2,7 +2,6 @@ import datetime
 import math
 import models.ai.com.ops.hops.helm.v1alpha1 as helmv1alpha1
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
-import models.k8s.apimachinery.pkg.apis.meta.v1 as metav1
 
 # ==============================================================================
 # E2E Test for Crossplane XRD (Kubernetes-only)
@@ -20,19 +19,38 @@ _items = [
         metadata.name = "crossplane-helm"
         spec = {
             crossplane = {
-                version = "2.0.2-up.5"
-                autoUpgrade.channel = "None"
+                autoUpgrade.channel = "Rapid"
             }
             defaultConditions = ["Ready"]
-            timeoutSeconds = 1800  # 30 minutes
-            cleanupTimeoutSeconds = 600  # 10 minutes
+            timeoutSeconds = 1800
+            cleanupTimeoutSeconds = 1800
             skipDelete = False
 
             # ==============================================================
-            # extraResources: Helm ProviderConfig with injected identity
+            # extraResources: RBAC and Helm ProviderConfig
             # These are NOT deleted during cleanup
             # ==============================================================
             extraResources = [
+                # Grant cluster-admin to all SAs in crossplane-system namespace
+                # Required because Helm provider with InjectedIdentity uses its own SA
+                # which doesn't have permission to create namespaces by default
+                {
+                    apiVersion = "rbac.authorization.k8s.io/v1"
+                    kind = "ClusterRoleBinding"
+                    metadata.name = "crossplane-system-cluster-admin"
+                    roleRef = {
+                        apiGroup = "rbac.authorization.k8s.io"
+                        kind = "ClusterRole"
+                        name = "cluster-admin"
+                    }
+                    subjects = [
+                        {
+                            kind = "Group"
+                            name = "system:serviceaccounts:crossplane-system"
+                            apiGroup = "rbac.authorization.k8s.io"
+                        }
+                    ]
+                }
                 # Helm ProviderConfig - uses in-cluster identity
                 # Must use helm.m.crossplane.io to match the Release API
                 {
@@ -62,7 +80,8 @@ _items = [
                     }
                     spec = {
                         clusterName = _test_name
-                        # labels uses x-kubernetes-preserve-unknown-fields
+                        # Use separate namespace to avoid conflicts with control plane Crossplane
+                        namespace = "crossplane-test"
                         labels = {
                             "hops.ops.com.ai/e2etest" = "true"
                             "hops.ops.com.ai/test-run" = _now
@@ -70,15 +89,6 @@ _items = [
                         providerConfigRef = {
                             name = "default"
                             kind = "ProviderConfig"
-                        }
-                        # values uses x-kubernetes-preserve-unknown-fields
-                        values = {
-                            resourcesCrossplane = {
-                                requests = {cpu = "10m", memory = "64Mi"}
-                            }
-                            resourcesRBACManager = {
-                                requests = {cpu = "10m", memory = "32Mi"}
-                            }
                         }
                     }
                 }
